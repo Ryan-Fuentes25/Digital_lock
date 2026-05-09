@@ -9,17 +9,18 @@
 
 ---
 
-## Block Diagram of Design
-    		 			
-![Block Diagram](./screenshots/ECE520_Final_Project_block_diagram.png)
-
----
 
 ## Introduction
 
 This project implements an Advanced Digital Lock on the Xilinx Zynq-7000 SoC using the Zybo Z7-10 development board. The system demonstrates a complete hardware/software co-design workflow using the Programmable Logic (PL) for time-critical hardware tasks and the Processing System (PS) for authentication logic and user interaction.
 
 The lock requires two independent factors to grant access — a 4-bit switch authorization key and a sequential 4-button PIN. A timed lockout mechanism protects against brute-force attempts and a guided password change mode allows the credentials to be updated at runtime.
+
+---
+
+## Block Diagram of Design
+    		 			
+![Block Diagram](./screenshots/ECE520_Final_Project_block_diagram.png)
 
 ---
 
