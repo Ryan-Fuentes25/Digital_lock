@@ -1,4 +1,4 @@
-# ECE 520/L - System-on-Chip Design with Lab
+# Digital_lock# ECE 520/L - System-on-Chip Design with Lab
 ## Advanced Digital Lock
 **California State University, Northridge**
 **Department of Electrical and Computer Engineering**
@@ -6,6 +6,12 @@
 
 **Student:** Ryan Fuentes
 **Instructor:** Aaron Nanas
+
+---
+
+## Block Diagram of Design
+    		 			
+![Block Diagram](./screenshots/ECE520_Final_Project_block_diagram.png)
 
 ---
 
