@@ -58,3 +58,8 @@ timestamp=[2026-05-04 18:23:59], mode=WORKBENCH_UI_INIT, duration=0:00:00.464, d
 timestamp=[2026-05-04 18:24:53], mode=BUILD, duration=0:00:05.506, duration_ms=5506, data={name=lock_app_v2, configuration=Debug, clean_build=false}
 timestamp=[2026-05-04 19:06:10], mode=BUILD, duration=0:00:00.771, duration_ms=771, data={name=lock_app_v2, configuration=Debug, clean_build=false}
 timestamp=[2026-05-04 19:56:10], mode=BUILD, duration=0:00:01.910, duration_ms=1910, data={name=lock_app_v2, configuration=Debug, clean_build=false}
+timestamp=[2026-05-08 23:41:58], mode=WORKBENCH_START, duration=0:00:16.646, duration_ms=16646, data={}
+timestamp=[2026-05-08 23:41:58], mode=WORKBENCH_UI_INIT, duration=0:00:00.186, duration_ms=186, data={editors_count=1, platform_editors_count=0, projects_count=7, platform_projects_count=2, active_platform_editor=false, projects=RemoteSystemsTempFiles,lock_app,lock_app_system,lock_app_v2,lock_app_v2_system,lock_plat,lock_plat_v2}
+timestamp=[2026-05-08 23:42:00], mode=PLATFORM_REPOSITORY_INIT, duration=0:00:01.001, duration_ms=1001, data={}
+timestamp=[2026-05-08 23:45:11], mode=BUILD, duration=0:00:01.372, duration_ms=1372, data={name=lock_app_v2, configuration=Debug, clean_build=false}
+timestamp=[2026-05-08 23:45:24], mode=BUILD, duration=0:00:12.177, duration_ms=12177, data={name=lock_app_v2_system, configuration=Debug, clean_build=false}

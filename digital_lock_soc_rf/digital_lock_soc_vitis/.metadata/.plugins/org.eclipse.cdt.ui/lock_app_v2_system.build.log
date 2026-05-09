@@ -1,0 +1,14 @@
+23:45:12 **** Build of configuration Debug for project lock_app_v2_system ****
+make all 
+Generating bif file for the system project
+generate_system_bif.bat 60030 C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_plat_v2/export/lock_plat_v2/lock_plat_v2.xpfm standalone_domain C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_app_v2_system/Debug/system.bif
+ECHO is off.
+ECHO is off.
+sdcard_gen --xpfm C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_plat_v2/export/lock_plat_v2/lock_plat_v2.xpfm --sys_config lock_plat_v2 --bif C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_app_v2_system/Debug/system.bif --bitstream C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_app_v2/_ide/bitstream/digital_lock_bd_rf_wrapper_v3.bit --elf C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_app_v2/Debug/lock_app_v2.elf,ps7_cortexa9_0
+ECHO is off.
+ECHO is off.
+creating BOOT.BIN using C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_app_v2/_ide/bitstream/digital_lock_bd_rf_wrapper_v3.bit
+Running C:/Xilinx/Vitis/2023.1/bin/bootgen  -image C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_app_v2_system/Debug/sd_card_temp/boot.bif -w -o i BOOT.BIN
+
+23:45:24 Build Finished (took 12s.146ms)
+
