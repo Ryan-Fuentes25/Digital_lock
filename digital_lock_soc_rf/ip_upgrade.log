@@ -1,0 +1,58 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2023.1 (win64) Build 3865809 Sun May  7 15:05:29 MDT 2023
+| Date         : Tue Apr 28 11:32:40 2026
+| Host         : R_Laptop running 64-bit major release  (build 9200)
+| Command      : upgrade_ip
+| Device       : xc7z010clg400-1
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Upgrade Log for IP 'digital_lock_bd_rf_digital_lock_0_0'
+
+1. Summary
+----------
+
+SUCCESS in the upgrade of digital_lock_bd_rf_digital_lock_0_0 (xilinx.com:user:digital_lock:1.0) from (Rev. 4) to (Rev. 5)
+
+
+
+
+
+
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2023.1 (win64) Build 3865809 Sun May  7 15:05:29 MDT 2023
+| Date         : Tue Apr 28 09:44:54 2026
+| Host         : R_Laptop running 64-bit major release  (build 9200)
+| Command      : upgrade_ip
+| Device       : xc7z010clg400-1
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Upgrade Log for IP 'digital_lock_bd_rf_digital_lock_0_0'
+
+1. Summary
+----------
+
+SUCCESS in the upgrade of digital_lock_bd_rf_digital_lock_0_0 (xilinx.com:user:digital_lock:1.0) from (Rev. 3) to (Rev. 4)
+
+
+
+
+
+
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2023.1 (win64) Build 3865809 Sun May  7 15:05:29 MDT 2023
+| Date         : Tue Apr 28 08:12:00 2026
+| Host         : R_Laptop running 64-bit major release  (build 9200)
+| Command      : upgrade_ip
+| Device       : xc7z010clg400-1
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Upgrade Log for IP 'digital_lock_bd_rf_digital_lock_0_0'
+
+1. Summary
+----------
+
+SUCCESS in the upgrade of digital_lock_bd_rf_digital_lock_0_0 (xilinx.com:user:digital_lock:1.0) from (Rev. 2) to (Rev. 3)
+

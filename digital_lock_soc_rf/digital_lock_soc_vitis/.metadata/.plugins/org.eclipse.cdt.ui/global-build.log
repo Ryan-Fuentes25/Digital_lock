@@ -1,0 +1,24 @@
+Nothing to build in platform 'lock_plat_v2'
+
+19:56:08 **** Incremental Build of configuration Debug for project lock_app_v2 ****
+make all 
+make --no-print-directory pre-build
+a9-linaro-pre-build-step
+' '
+make --no-print-directory main-build
+'Building file: ../src/helloworld.c'
+'Invoking: ARM v7 gcc compiler'
+arm-none-eabi-gcc -Wall -O0 -g3 -c -fmessage-length=0 -MT"src/helloworld.o" -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -IC:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_plat_v2/export/lock_plat_v2/sw/lock_plat_v2/standalone_domain/bspinclude/include -MMD -MP -MF"src/helloworld.d" -MT"src/helloworld.o" -o "src/helloworld.o" "../src/helloworld.c"
+'Finished building: ../src/helloworld.c'
+' '
+'Building target: lock_app_v2.elf'
+'Invoking: ARM v7 gcc linker'
+arm-none-eabi-gcc -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -Wl,-build-id=none -specs=Xilinx.spec -Wl,-T -Wl,../src/lscript.ld -LC:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_plat_v2/export/lock_plat_v2/sw/lock_plat_v2/standalone_domain/bsplib/lib -o "lock_app_v2.elf"  ./src/helloworld.o ./src/platform.o   -Wl,--start-group,-lxil,-lgcc,-lc,--end-group
+'Finished building target: lock_app_v2.elf'
+' '
+'Invoking: ARM v7 Print Size'
+arm-none-eabi-size lock_app_v2.elf  |tee "lock_app_v2.elf.size"
+   text	   data	    bss	    dec	    hex	filename
+  28605	   1144	  22568	  52317	   cc5d	lock_app_v2.elf
+'Finished building: lock_app_v2.elf.size'
+' '

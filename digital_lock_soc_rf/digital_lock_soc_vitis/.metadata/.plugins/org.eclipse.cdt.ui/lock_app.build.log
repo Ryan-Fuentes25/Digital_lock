@@ -1,0 +1,25 @@
+10:58:18 **** Incremental Build of configuration Debug for project lock_app ****
+make all 
+make --no-print-directory pre-build
+a9-linaro-pre-build-step
+' '
+make --no-print-directory main-build
+'Building file: ../src/helloworld.c'
+'Invoking: ARM v7 gcc compiler'
+arm-none-eabi-gcc -Wall -O0 -g3 -c -fmessage-length=0 -MT"src/helloworld.o" -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -IC:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_plat/export/lock_plat/sw/lock_plat/standalone_domain/bspinclude/include -MMD -MP -MF"src/helloworld.d" -MT"src/helloworld.o" -o "src/helloworld.o" "../src/helloworld.c"
+'Finished building: ../src/helloworld.c'
+' '
+'Building target: lock_app.elf'
+'Invoking: ARM v7 gcc linker'
+arm-none-eabi-gcc -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -Wl,-build-id=none -specs=Xilinx.spec -Wl,-T -Wl,../src/lscript.ld -LC:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_vitis/lock_plat/export/lock_plat/sw/lock_plat/standalone_domain/bsplib/lib -o "lock_app.elf"  ./src/helloworld.o ./src/platform.o   -Wl,--start-group,-lxil,-lgcc,-lc,--end-group
+'Finished building target: lock_app.elf'
+' '
+'Invoking: ARM v7 Print Size'
+arm-none-eabi-size lock_app.elf  |tee "lock_app.elf.size"
+   text	   data	    bss	    dec	    hex	filename
+  28413	   1144	  22568	  52125	   cb9d	lock_app.elf
+'Finished building: lock_app.elf.size'
+' '
+
+10:58:20 Build Finished (took 1s.715ms)
+

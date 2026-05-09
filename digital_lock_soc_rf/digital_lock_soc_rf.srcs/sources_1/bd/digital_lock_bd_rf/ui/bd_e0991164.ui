@@ -1,0 +1,40 @@
+{
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"0.724232",
+   "Default View_TopLeft":"29,-421",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.5.8 2022-09-21 7111 VDI=41 GEI=38 GUI=JA:10.0
+#  -string -flagsOSRD
+preplace port DDR -pg 1 -lvl 5 -x 1490 -y -140 -defaultsOSRD
+preplace port FIXED_IO -pg 1 -lvl 5 -x 1490 -y -120 -defaultsOSRD
+preplace port port-id_rgb_r -pg 1 -lvl 5 -x 1490 -y -390 -defaultsOSRD
+preplace port port-id_rgb_g -pg 1 -lvl 5 -x 1490 -y -370 -defaultsOSRD
+preplace port port-id_rgb_b -pg 1 -lvl 5 -x 1490 -y -350 -defaultsOSRD
+preplace portBus led -pg 1 -lvl 5 -x 1490 -y -220 -defaultsOSRD
+preplace portBus sw -pg 1 -lvl 0 -x -10 -y -210 -defaultsOSRD
+preplace portBus btn -pg 1 -lvl 0 -x -10 -y -190 -defaultsOSRD
+preplace inst processing_system7_0 -pg 1 -lvl 2 -x 490 -y -90 -defaultsOSRD
+preplace inst ps7_0_axi_periph -pg 1 -lvl 4 -x 1300 -y -260 -defaultsOSRD
+preplace inst rst_ps7_0_50M -pg 1 -lvl 3 -x 930 -y -300 -defaultsOSRD
+preplace inst digital_lock_0 -pg 1 -lvl 1 -x 150 -y -190 -defaultsOSRD
+preplace netloc btn_0_1 1 0 1 N -190
+preplace netloc digital_lock_0_led 1 1 4 NJ -220 690J -150 1150J -140 1460J
+preplace netloc digital_lock_0_rgb_b 1 1 4 270J -210 710J -180 1120J -400 1470J
+preplace netloc digital_lock_0_rgb_g 1 1 4 260J -230 720J -170 1130J -380 1450J
+preplace netloc digital_lock_0_rgb_r 1 1 4 NJ -200 NJ -200 1100J -390 NJ
+preplace netloc processing_system7_0_FCLK_CLK0 1 0 4 30 -90 280 20 740 -160 1150
+preplace netloc processing_system7_0_FCLK_RESET0_N 1 2 1 750 -320n
+preplace netloc rst_ps7_0_50M_peripheral_aresetn 1 0 4 40 -290 NJ -290 760J -190 1140
+preplace netloc sw_0_1 1 0 1 N -210
+preplace netloc processing_system7_0_DDR 1 2 3 NJ -140 1110 -130 1470
+preplace netloc processing_system7_0_FIXED_IO 1 2 3 NJ -120 N -120 N
+preplace netloc processing_system7_0_M_AXI_GP0 1 2 2 700J -400 1110
+preplace netloc ps7_0_axi_periph_M00_AXI 1 0 5 20 -300 NJ -300 730J -110 NJ -110 1450
+levelinfo -pg 1 -10 150 490 930 1300 1490
+pagesize -pg 1 -db -bbox -sgen -120 -410 1610 200
+"
+}
+{
+   "da_axi4_cnt":"1",
+   "da_ps7_cnt":"2"
+}

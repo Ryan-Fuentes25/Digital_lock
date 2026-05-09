@@ -1,0 +1,550 @@
+/*
+ * BUTTON ASSIGNMENTS:
+ *   BTN0, BTN1, BTN2, BTN3 = PIN sequence digits (all 4 usable)
+ *   BTN0+BTN3 held 3s       = Cancel / clear current entry
+ *   BTN0+BTN3 held 10s      = Change password (IDLE only)
+ *
+ *
+ * REGISTER MAP (matches digital_lock_v1_0_S00_AXI.v):
+ *   0x00  slv_reg0  [R]  [3:0]  sw_stable     - switch positions
+ *                        [7:4]  btn_debounced  - stable button levels
+ *                        [9]    seq_full       - 4 presses captured
+ *   0x04  slv_reg1  [R]  [7:0]  seq_buf       - packed 4-press PIN
+ *   0x10  slv_reg4  [W]  [3:0]  led[3:0]
+ *                        [4]    seq_clear strobe
+ *   0x14  slv_reg5  [W]  [0] rgb_r  [1] rgb_g  [2] rgb_b
+ *
+ * TWO-FACTOR SECURITY:
+ *   Factor 1 - SW0-SW3 must match stored key. Press BTN0 to confirm.
+ *   Factor 2 - Press 4 buttons in correct sequence order.
+ *   3 failures triggers 30-second lockout.
+ *
+ * DEFAULT PASSWORD:
+ *   Factor 1: SW3=1 SW2=0 SW1=1 SW0=0  (flip SW3 and SW1 up)
+ *   Factor 2: BTN0 -> BTN2 -> BTN1 -> BTN3
+ */
+
+#include "xparameters.h"
+#include "xil_io.h"
+#include "xil_printf.h"
+#include "sleep.h"
+
+// Base address
+#define LOCK_BASE   XPAR_DIGITAL_LOCK_0_S00_AXI_BASEADDR
+
+// Register offsets
+#define REG0        (LOCK_BASE + 0x00)
+#define REG1        (LOCK_BASE + 0x04)
+#define REG4        (LOCK_BASE + 0x10)
+#define REG5        (LOCK_BASE + 0x14)
+
+// Register access macros
+#define RD_REG0()       Xil_In32(REG0)
+#define RD_REG1()       Xil_In32(REG1)
+#define WR_LED(v)       Xil_Out32(REG4, (u32)((v) & 0x0F))
+#define WR_LED_CLR(v)   Xil_Out32(REG4, (u32)(((v) & 0x0F) | 0x10))
+#define WR_RGB(v)       Xil_Out32(REG5, (u32)((v) & 0x07))
+
+// REG0 field extraction
+#define GET_SW(r)       ((u8)( (r)       & 0x0F))
+#define GET_BTN(r)      ((u8)(((r) >> 4) & 0x0F))
+#define GET_SEQFULL(r)  (    ((r) >> 8)  & 0x01)
+
+// Button bit masks
+#define BTN0_BIT        (1 << 0)
+#define BTN1_BIT        (1 << 1)
+#define BTN2_BIT        (1 << 2)
+#define BTN3_BIT        (1 << 3)
+
+//Sequence decode: extract nth press (0=oldest) as 2-bit button ID
+#define SEQ_PRESS(buf,n)  (((buf) >> ((n)*2)) & 0x03)
+
+// RGB output values
+#define RGB_OFF         0x00
+#define RGB_R           0x01
+#define RGB_G           0x02
+#define RGB_B           0x04
+#define RGB_PURPLE      (RGB_R | RGB_B)
+
+// Security configuration
+#define MAX_FAILURES        3
+#define LOCKOUT_SECONDS     30
+
+// Hold duration in seconds - same 3s threshold for both combos
+#define HOLD_CANCEL_SEC     3    /* BTN0+BTN3 held 3s = cancel */
+#define HOLD_CHGPWD_SEC     3    /* BTN2+BTN3 held 3s = change password */
+
+/* Default Factor 1 switch key: SW3=1 SW2=0 SW1=1 SW0=0 (0b1010 = 0xA) */
+#define DEFAULT_SW_KEY      0x0A
+
+/* Default Factor 2 PIN: BTN0 -> BTN2 -> BTN1 -> BTN3
+ * Encoded: press1=BTN0(00), press2=BTN2(10), press3=BTN1(01), press4=BTN3(11)
+ * Packed:  0b11_01_10_00 = 0xD8
+ */
+#define DEFAULT_PIN_SEQ     0xD8
+
+// State machine
+typedef enum {
+    STATE_IDLE,
+    STATE_CHECK_KEY,
+    STATE_AWAIT_PIN,
+    STATE_CHECK_PIN,
+    STATE_UNLOCKED,
+    STATE_FAILED,
+    STATE_LOCKED_OUT,
+    STATE_CHANGE_PASSWORD
+} LockState;
+
+// Function prototypes
+static void         set_rgb(u32 val);
+static void         set_leds(u8 val);
+static void         all_off(void);
+static void         force_clear_seq(void);
+static void         wait_all_released(void);
+static void         blink(u32 color, int times, int on_ms, int off_ms);
+static void         print_banner(u8 sw_key, u8 pin_seq);
+static const char*  btn_name(u8 id);
+
+
+int main(void)
+{
+    LockState state        = STATE_IDLE;
+    int       failures     = 0;
+    u8        sw_key       = DEFAULT_SW_KEY;
+    u8        pin_seq      = DEFAULT_PIN_SEQ;
+    u32       r0;
+    u8        sw_val, btn_val;
+    u8        prev_btn     = 0;
+    u8        pin_progress = 0;
+    int       idle_printed = 0;
+
+    int       hold_cycles  = 0;   /* BTN0+BTN3 cancel counter */
+    int       hold_cycles2 = 0;   /* BTN2+BTN3 change password counter */
+
+    print_banner(sw_key, pin_seq);
+
+    // Force all outputs off at startup
+    WR_LED(0x00);
+    WR_RGB(RGB_OFF);
+    force_clear_seq();
+
+    while (1) {
+
+        r0      = RD_REG0();
+        sw_val  = GET_SW(r0);
+        btn_val = GET_BTN(r0);
+
+        // Software rising edge detection
+        u8 btn_pressed = btn_val & ~prev_btn;
+        prev_btn = btn_val;
+
+        /* BTN0+BTN3 HOLD DETECTOR (software-side, 50ms poll = 20 polls/s)
+         * 3s  cancel  = 60 polls
+         * 10s chg pwd = 200 polls
+         *
+         * BTN0+BTN3 held 3s = cancel (any state except IDLE and lockout) */
+        if ((btn_val & BTN0_BIT) && (btn_val & BTN3_BIT)) {
+            hold_cycles++;
+            if (hold_cycles == (HOLD_CANCEL_SEC * 20)
+                && state != STATE_LOCKED_OUT
+                && state != STATE_IDLE) {
+                xil_printf("[HOLD 3s] Cancelled. Returning to IDLE.\r\n");
+                force_clear_seq();
+                all_off();
+                pin_progress = 0;
+                prev_btn     = 0;
+                hold_cycles  = 0;
+                hold_cycles2 = 0;
+                wait_all_released();
+                state        = STATE_IDLE;
+                idle_printed = 0;
+                continue;
+            }
+        } else {
+            hold_cycles = 0;
+        }
+
+        // BTN2+BTN3 held 3s = change password (IDLE only)
+        if ((btn_val & BTN2_BIT) && (btn_val & BTN3_BIT)) {
+            hold_cycles2++;
+            if (hold_cycles2 == (HOLD_CANCEL_SEC * 20)
+                && state == STATE_IDLE) {
+                xil_printf("[HOLD BTN2+BTN3 3s] Entering CHANGE PASSWORD.\r\n");
+                hold_cycles  = 0;
+                hold_cycles2 = 0;
+                prev_btn     = 0;
+                wait_all_released();
+                state        = STATE_CHANGE_PASSWORD;
+                continue;
+            }
+        } else {
+            hold_cycles2 = 0;
+        }
+
+        switch (state) {
+
+        //STATE_IDLE
+        case STATE_IDLE:
+            set_rgb(RGB_B);
+            set_leds((u8)(failures & 0x0F));
+
+            if (!idle_printed) {
+                xil_printf("\r\n[IDLE] Set switches to auth key, press BTN0.\r\n");
+                xil_printf("       BTN0+BTN3 3s=Cancel | BTN2+BTN3 3s=Change Password\r\n");
+                xil_printf("       Key hint: SW3=%d SW2=%d SW1=%d SW0=%d\r\n",
+                    (sw_key>>3)&1,(sw_key>>2)&1,(sw_key>>1)&1,(sw_key>>0)&1);
+                idle_printed = 1;
+            }
+
+            if (btn_pressed & BTN0_BIT) {
+                state        = STATE_CHECK_KEY;
+                idle_printed = 0;
+            }
+            break;
+
+         // STATE_CHECK_KEY - Factor 1: compare switches to stored key
+        case STATE_CHECK_KEY:
+            xil_printf("[FACTOR 1] Checking switch key...\r\n");
+            xil_printf("  Entered:  SW=0b%d%d%d%d\r\n",
+                (sw_val>>3)&1,(sw_val>>2)&1,(sw_val>>1)&1,(sw_val>>0)&1);
+            xil_printf("  Expected: SW=0b%d%d%d%d\r\n",
+                (sw_key>>3)&1,(sw_key>>2)&1,(sw_key>>1)&1,(sw_key>>0)&1);
+
+            if (sw_val == sw_key) {
+                xil_printf("[FACTOR 1] Key ACCEPTED. Enter PIN sequence.\r\n");
+                xil_printf("           Press 4 buttons in correct order.\r\n");
+                force_clear_seq();
+                pin_progress = 0;
+                prev_btn     = 0;
+                state        = STATE_AWAIT_PIN;
+            } else {
+                xil_printf("[FACTOR 1] Wrong key.\r\n");
+                state = STATE_FAILED;
+            }
+            break;
+
+        // STATE_AWAIT_PIN - wait for 4 button presses
+        case STATE_AWAIT_PIN:
+        {
+            r0      = RD_REG0();
+            btn_val = GET_BTN(r0);
+
+            u8 btn_now     = btn_val;
+            u8 new_pressed = btn_now & ~prev_btn;
+            prev_btn       = btn_now;
+
+            if (new_pressed && !GET_SEQFULL(r0)) {
+                pin_progress++;
+                xil_printf("[PIN] Press %d of 4 captured (BTN%s).\r\n",
+                           pin_progress,
+                           btn_name((new_pressed & BTN0_BIT) ? 0 :
+                                    (new_pressed & BTN1_BIT) ? 1 :
+                                    (new_pressed & BTN2_BIT) ? 2 : 3));
+                set_leds((u8)((1 << pin_progress) - 1));
+                set_rgb(RGB_B);
+            }
+
+            if (GET_SEQFULL(r0)) {
+                xil_printf("[PIN] 4 presses captured. Validating...\r\n");
+                pin_progress = 0;
+                state        = STATE_CHECK_PIN;
+            }
+            break;
+        }
+
+        // STATE_CHECK_PIN - Factor 2: read seq_buf and validate
+        case STATE_CHECK_PIN:
+        {
+            u8 captured = (u8)(RD_REG1() & 0xFF);
+
+            xil_printf("[FACTOR 2] Captured: BTN%s->BTN%s->BTN%s->BTN%s\r\n",
+                btn_name(SEQ_PRESS(captured,0)),
+                btn_name(SEQ_PRESS(captured,1)),
+                btn_name(SEQ_PRESS(captured,2)),
+                btn_name(SEQ_PRESS(captured,3)));
+            xil_printf("[FACTOR 2] Expected: BTN%s->BTN%s->BTN%s->BTN%s\r\n",
+                btn_name(SEQ_PRESS(pin_seq,0)),
+                btn_name(SEQ_PRESS(pin_seq,1)),
+                btn_name(SEQ_PRESS(pin_seq,2)),
+                btn_name(SEQ_PRESS(pin_seq,3)));
+
+            if (captured == pin_seq) {
+                failures = 0;
+                state    = STATE_UNLOCKED;
+                xil_printf("[FACTOR 2] Correct! Access granted.\r\n");
+            } else {
+                xil_printf("[FACTOR 2] Wrong sequence.\r\n");
+                state = STATE_FAILED;
+            }
+            break;
+        }
+
+        case STATE_UNLOCKED:
+            blink(RGB_G, 3, 150, 100);
+            set_rgb(RGB_G);
+            set_leds(0x0F);
+            xil_printf("[UNLOCKED] Access granted! Re-arming in 3 seconds.\r\n");
+            sleep(3);
+            all_off();
+            state        = STATE_IDLE;
+            idle_printed = 0;
+            xil_printf("[IDLE] Lock re-engaged.\r\n");
+            break;
+
+        case STATE_FAILED:
+            failures++;
+            set_leds((u8)(failures & 0x0F));
+            blink(RGB_R, 4, 180, 120);
+            xil_printf("[FAILED] Failure %d of %d.\r\n", failures, MAX_FAILURES);
+
+            if (failures >= MAX_FAILURES) {
+                xil_printf("[LOCKOUT] Max failures reached.\r\n");
+                state = STATE_LOCKED_OUT;
+            } else {
+                xil_printf("[RETRY] %d attempt(s) remaining.\r\n",
+                           MAX_FAILURES - failures);
+                state        = STATE_IDLE;
+                idle_printed = 0;
+            }
+            break;
+
+        case STATE_LOCKED_OUT:
+        {
+            int t;
+            set_leds(0x00);
+            xil_printf("[LOCKED OUT] Inputs disabled for %d seconds.\r\n",
+                       LOCKOUT_SECONDS);
+
+            for (t = LOCKOUT_SECONDS; t > 0; t--) {
+                xil_printf("[LOCKED OUT] %d second(s) remaining...\r\n", t);
+                set_rgb(RGB_B);   usleep(500000);
+                set_rgb(RGB_OFF); usleep(500000);
+            }
+
+            failures     = 0;
+            force_clear_seq();
+            all_off();
+            state        = STATE_IDLE;
+            idle_printed = 0;
+            xil_printf("[RESET] Lockout expired. System re-armed.\r\n");
+            break;
+        }
+
+        /* STATE_CHANGE_PASSWORD
+         * Step 1: set new switch key, press BTN0 to confirm
+         * Step 2: press new 4-button PIN sequence
+         * Cancel: hold BTN0+BTN3 for 3s at any point
+         */
+        case STATE_CHANGE_PASSWORD:
+        {
+            int cancelled  = 0;
+            u8  new_sw_key = sw_key;
+            u8  new_pin    = pin_seq;
+            u8  local_cnt  = 0;
+            int local_hold = 0;
+
+            xil_printf("\r\n[CHANGE PASSWORD] Active.\r\n");
+            blink(RGB_PURPLE, 4, 200, 150);
+
+            /* Sub-step 1: new switch key
+             * BTN0 = confirm new key
+             * BTN2+BTN3 held 3s = cancel without saving */
+            xil_printf("[CHANGE] STEP 1/2: Set new switch key, press BTN0 to confirm.\r\n");
+            xil_printf("         Press BTN1 to cancel.\r\n");
+
+            prev_btn = GET_BTN(RD_REG0());
+
+            while (1) {
+                set_rgb(RGB_PURPLE);
+                set_leds(0x01);
+
+                r0      = RD_REG0();
+                btn_val = GET_BTN(r0);
+                sw_val  = GET_SW(r0);
+
+                u8 p = btn_val & ~prev_btn;
+                prev_btn = btn_val;
+
+                /* BTN1 = instant cancel in change password mode */
+                if (p & BTN1_BIT) {
+                    cancelled = 1; break;
+                }
+
+                /* BTN0 = confirm new switch key */
+                if (p & BTN0_BIT) {
+                    new_sw_key = sw_val;
+                    xil_printf("[CHANGE] New key: 0b%d%d%d%d\r\n",
+                        (new_sw_key>>3)&1,(new_sw_key>>2)&1,
+                        (new_sw_key>>1)&1,(new_sw_key>>0)&1);
+                    break;
+                }
+                usleep(50000);
+            }
+
+            if (cancelled) {
+                xil_printf("[CHANGE] Cancelled.\r\n");
+                wait_all_released();
+                all_off();
+                hold_cycles2 = 0;
+                state        = STATE_IDLE;
+                idle_printed = 0;
+                prev_btn     = 0;
+                break;
+            }
+
+            /* Sub-step 2: new PIN sequence
+             * BTN0+BTN3 held 3s = cancel */
+            xil_printf("[CHANGE] STEP 2/2: Press new 4-button PIN.\r\n");
+            xil_printf("         Hold BTN0+BTN3 3s to cancel.\r\n");
+
+            force_clear_seq();
+            local_cnt  = 0;
+            local_hold = 0;
+            prev_btn   = GET_BTN(RD_REG0());
+
+            while (1) {
+                set_rgb(RGB_PURPLE);
+                set_leds((u8)((1 << local_cnt) - 1));
+
+                r0      = RD_REG0();
+                btn_val = GET_BTN(r0);
+
+                u8 p = btn_val & ~prev_btn;
+                prev_btn = btn_val;
+
+                /* BTN0+BTN3 held 3s = cancel */
+                if ((btn_val & BTN0_BIT) && (btn_val & BTN3_BIT)) {
+                    local_hold++;
+                    if (local_hold >= (HOLD_CANCEL_SEC * 20)) {
+                        cancelled = 1;
+                        force_clear_seq();
+                        break;
+                    }
+                } else {
+                    local_hold = 0;
+                }
+
+                if (p && !GET_SEQFULL(r0)) {
+                    local_cnt++;
+                    xil_printf("[CHANGE] PIN press %d of 4.\r\n", local_cnt);
+                }
+
+                if (GET_SEQFULL(r0)) {
+                    new_pin = (u8)(RD_REG1() & 0xFF);
+                    xil_printf("[CHANGE] New PIN: BTN%s->BTN%s->BTN%s->BTN%s\r\n",
+                        btn_name(SEQ_PRESS(new_pin,0)),
+                        btn_name(SEQ_PRESS(new_pin,1)),
+                        btn_name(SEQ_PRESS(new_pin,2)),
+                        btn_name(SEQ_PRESS(new_pin,3)));
+                    break;
+                }
+                usleep(50000);
+            }
+
+            if (cancelled) {
+                xil_printf("[CHANGE] Cancelled.\r\n");
+                wait_all_released();
+                all_off();
+                hold_cycles2 = 0;
+                state        = STATE_IDLE;
+                idle_printed = 0;
+                prev_btn     = 0;
+                break;
+            }
+
+            /* Commit */
+            sw_key  = new_sw_key;
+            pin_seq = new_pin;
+            xil_printf("[CHANGE] Password updated!\r\n");
+            xil_printf("  New key: 0b%d%d%d%d\r\n",
+                (sw_key>>3)&1,(sw_key>>2)&1,(sw_key>>1)&1,(sw_key>>0)&1);
+            xil_printf("  New PIN: BTN%s->BTN%s->BTN%s->BTN%s\r\n",
+                btn_name(SEQ_PRESS(pin_seq,0)),
+                btn_name(SEQ_PRESS(pin_seq,1)),
+                btn_name(SEQ_PRESS(pin_seq,2)),
+                btn_name(SEQ_PRESS(pin_seq,3)));
+
+            blink(RGB_G, 5, 150, 100);
+            all_off();
+            state        = STATE_IDLE;
+            idle_printed = 0;
+            prev_btn     = 0;
+            break;
+        }
+
+        default:
+            state = STATE_IDLE;
+            break;
+
+        } /* end switch */
+
+        usleep(50000);  /* 50ms poll = 20 polls per second */
+
+    } /* end while(1) */
+
+    return 0;
+}
+
+// Helpers
+static void set_rgb(u32 val)  { WR_RGB(val); }
+static void set_leds(u8 val)  { WR_LED(val); }
+static void all_off(void)     { WR_LED(0x00); WR_RGB(RGB_OFF); }
+
+static void force_clear_seq(void)
+{
+    WR_LED_CLR(0x00);
+    usleep(2000);
+    WR_LED(0x00);
+}
+
+static void blink(u32 color, int times, int on_ms, int off_ms)
+{
+    int i;
+    for (i = 0; i < times; i++) {
+        set_rgb(color);   usleep((u32)(on_ms  * 1000));
+        set_rgb(RGB_OFF); usleep((u32)(off_ms * 1000));
+    }
+}
+
+/* Wait until all buttons are released before continuing.
+ * Prevents a held button from triggering the next state immediately
+ * after a cancel or transition. */
+static void wait_all_released(void)
+{
+    while (GET_BTN(RD_REG0()) != 0x00) {
+        usleep(10000);  /* poll every 10ms */
+    }
+    usleep(50000);  /* extra 50ms settling time after release */
+}
+
+static void print_banner(u8 sw_key, u8 pin_seq)
+{
+    xil_printf("\r\n");
+    xil_printf("====================================================\r\n");
+    xil_printf("  ECE 520 - Advanced Digital Lock\r\n");
+    xil_printf("  Zybo Z7-10  |  Spring 2026\r\n");
+    xil_printf("====================================================\r\n");
+    xil_printf("  FACTOR 1 - Switch key : SW3=%d SW2=%d SW1=%d SW0=%d\r\n",
+               (sw_key>>3)&1,(sw_key>>2)&1,(sw_key>>1)&1,(sw_key>>0)&1);
+    xil_printf("  FACTOR 2 - PIN        : BTN%s->BTN%s->BTN%s->BTN%s\r\n",
+               btn_name(SEQ_PRESS(pin_seq,0)),
+               btn_name(SEQ_PRESS(pin_seq,1)),
+               btn_name(SEQ_PRESS(pin_seq,2)),
+               btn_name(SEQ_PRESS(pin_seq,3)));
+    xil_printf("  BTN0+BTN3 hold 3s     = Cancel / clear entry\r\n");
+    xil_printf("  BTN2+BTN3 hold 3s     = Change password (IDLE only)\r\n");
+    xil_printf("  Max failures          = %d before %ds lockout\r\n",
+               MAX_FAILURES, LOCKOUT_SECONDS);
+    xil_printf("====================================================\r\n\r\n");
+}
+
+static const char* btn_name(u8 id)
+{
+    switch(id) {
+        case 0:  return "0";
+        case 1:  return "1";
+        case 2:  return "2";
+        case 3:  return "3";
+        default: return "?";
+    }
+}

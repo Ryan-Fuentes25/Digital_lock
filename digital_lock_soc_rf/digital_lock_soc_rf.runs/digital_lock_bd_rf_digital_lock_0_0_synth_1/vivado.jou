@@ -1,0 +1,14 @@
+#-----------------------------------------------------------
+# Vivado v2023.1 (64-bit)
+# SW Build 3865809 on Sun May  7 15:05:29 MDT 2023
+# IP Build 3864474 on Sun May  7 20:36:21 MDT 2023
+# SharedData Build 3865790 on Sun May 07 13:33:03 MDT 2023
+# Start of session at: Tue Apr 28 11:33:38 2026
+# Process ID: 19764
+# Current directory: C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_rf.runs/digital_lock_bd_rf_digital_lock_0_0_synth_1
+# Command line: vivado.exe -log digital_lock_bd_rf_digital_lock_0_0.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source digital_lock_bd_rf_digital_lock_0_0.tcl
+# Log file: C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_rf.runs/digital_lock_bd_rf_digital_lock_0_0_synth_1/digital_lock_bd_rf_digital_lock_0_0.vds
+# Journal file: C:/Users/fuent/.Xilinx/ECE520L/Sandbox/digital_lock_soc_rf/digital_lock_soc_rf.runs/digital_lock_bd_rf_digital_lock_0_0_synth_1\vivado.jou
+# Running On: R_Laptop, OS: Windows, CPU Frequency: 2795 MHz, CPU Physical cores: 8, Host memory: 16368 MB
+#-----------------------------------------------------------
+source digital_lock_bd_rf_digital_lock_0_0.tcl -notrace
